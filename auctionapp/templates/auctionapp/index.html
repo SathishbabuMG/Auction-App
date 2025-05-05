@@ -1,0 +1,28 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Page</title>
+    <!-- Link to external CSS -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+
+    <div class="container">
+        {% if user.is_authenticated %}
+            <h1>Welcome, {{ user.username }}!</h1>
+            <p>Explore and bid on exciting auction items.</p>
+            <a href="{% url 'logout' %}" class="btn btn-signup">Logout</a> <!-- Logout button -->
+        {% else %}
+            <h1>Welcome to the Auction App!</h1>
+            <p>Explore and bid on exciting auction items.</p>
+            <a href="/login" class="btn">Login</a>
+            <a href="/signup" class="btn btn-signup">Sign Up</a>
+        {% endif %}
+    </div>
+
+</body>
+</html>
