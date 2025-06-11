@@ -22,3 +22,57 @@ dist/
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+
+# Terraform
+.terraform/
+.terraform/
+*.tfvars
+*.tfstate
+*.tfstate.backup
+*.tfvars
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+terraform.tfvars.json
+
+# Kubernetes
+.kube/config
+*.yaml~          # temp backups
+*.bak            # backup files
+
+# Ansible
+*.retry
+*.log
+*.tar.gz
+*.tmp
+*.vault-pass     # custom vault password files
+host_vars/*
+group_vars/*
+!host_vars/*.yml # ignore all except yml (optional)
+!group_vars/*.yml
+
+# Secrets (if using SOPS or other encrypted files)
+secrets/
+*.enc
+*.age
+
+# Python (if using Python scripts with Ansible)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+
+# General
+*.swp
+*.swo
+*.bak
+*.tmp
+*.DS_Store
+Thumbs.db
+
+# IDEs/editors
+.vscode/
+.idea/
+*.iml

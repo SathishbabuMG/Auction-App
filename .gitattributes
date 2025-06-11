@@ -1,0 +1,42 @@
+# === Terraform files ===
+*.tf       text eol=lf
+*.tfvars   text eol=lf
+*.tfstate  binary
+*.tfstate.backup binary
+*.tfplan   binary
+*.lock.hcl text eol=lf
+
+# Ignore CRLF warnings for Terraform provider binaries (Windows executables)
+*.exe      binary
+
+# === Ansible files ===
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.retry    binary
+*.log      binary
+
+# === Python files ===
+*.py       text eol=lf
+*.py[cod]  binary
+__pycache__/ binary
+
+# === Editor config files ===
+*.ini      text eol=lf
+
+# === General files ===
+*.sh       text eol=lf
+*.txt      text eol=lf
+
+# === Ignore line endings in binary files ===
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.zip      binary
+*.tar.gz   binary
+*.bak      binary
+*.tmp      binary
+
+# === Others ===
+.vscode/   binary
+.idea/     binary
