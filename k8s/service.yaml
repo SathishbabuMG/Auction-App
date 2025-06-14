@@ -7,7 +7,6 @@ spec:
     app: django
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 8000
-  type: LoadBalancer
-  loadBalancerIP: 52.224.216.56  # Assign your static IP here
+      port: 80            # Exposing on port 80
+      targetPort: 8000     # Django app is running on port 8000
+  type: LoadBalancer  
