@@ -2,12 +2,11 @@
 - name: Setup Jenkins, Docker, and Kubernetes
   hosts: vm
   become: yes
-
   tasks:
+
     - name: Update APT packages
       apt:
         update_cache: yes
-        cache_valid_time: 3600
 
     - name: Install Java (required for Jenkins)
       apt:
@@ -19,23 +18,22 @@
         url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
         state: present
 
-    - name: Add Jenkins repository
-      apt_repository:
-        repo: "deb https://pkg.jenkins.io/debian-stable binary/"
-        state: present
+    - name: Add Jenkins repository manually (workaround for apt_repository bug)
+      shell: |
+        echo "deb https://pkg.jenkins.io/debian-stable binary/" | tee /etc/apt/sources.list.d/jenkins.list
+      args:
+        warn: false
+
+    - name: Update APT cache after adding Jenkins repo
+      apt:
+        update_cache: yes
 
     - name: Install Jenkins
       apt:
         name: jenkins
         state: present
 
-    - name: Start and enable Jenkins
-      systemd:
-        name: jenkins
-        enabled: yes
-        state: started
-
-    - name: Install prerequisite packages for Docker
+    - name: Install Docker dependencies
       apt:
         name:
           - apt-transport-https
@@ -45,17 +43,14 @@
         state: present
 
     - name: Add Docker GPG key
-      apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
+      shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 
-    - name: Add Docker repository manually
-      shell: |
-        echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable" > /etc/apt/sources.list.d/docker.list
+    - name: Add Docker repository
+      shell: add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
       args:
         warn: false
 
-    - name: Update apt cache after adding Docker repo
+    - name: Update APT cache after adding Docker repo
       apt:
         update_cache: yes
 
@@ -64,20 +59,34 @@
         name: docker-ce
         state: present
 
-    - name: Add user to docker group
-      user:
-        name: "{{ ansible_user }}"
-        groups: docker
-        append: yes
-
     - name: Enable Docker service
       systemd:
         name: docker
         enabled: yes
         state: started
 
-    - name: Install Kubernetes tools (kubectl)
-      get_url:
-        url: https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl
-        dest: /usr/local/bin/kubectl
-        mode: '0755'
+    - name: Add current user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Install Kubernetes tools (kubectl, kubeadm, kubelet)
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        allow_unauthenticated: yes
+
+    - name: Hold Kubernetes packages at current version
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        allow_unauthenticated: yes
+        force: yes
+        lock: yes
