@@ -74,7 +74,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   name                = "auction-vm"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  size                = "Standard_B1s" # Free tier eligible
+  size                = "Standard_B2s" # Free tier eligible
 
   admin_username = "sathish"
 
