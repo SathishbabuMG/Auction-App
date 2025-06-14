@@ -7,6 +7,7 @@ spec:
     app: django
   ports:
     - protocol: TCP
-      port: 80            # Exposing on port 80
-      targetPort: 8000     # Django app is running on port 8000
-  type: LoadBalancer  
+      port: 80  # Expose on port 80 externally
+      targetPort: 8000  # Port your Django app listens to inside the container
+      nodePort: 30080  # Port to expose on each node (you can customize this port)
+  type: NodePort  # Change to NodePort
