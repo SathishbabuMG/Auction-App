@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: django-deployment
-  labels:
-    app: django
 spec:
   replicas: 1
   selector:
@@ -15,9 +13,9 @@ spec:
         app: django
     spec:
       containers:
-      - name: django-container
-        image: auctionapp.azurecr.io/djangoapp:v1
-        ports:
-        - containerPort: 8000
+        - name: django-container
+          image: djangopp.azurecr.io/django-app:v1  # Ensure the image name and tag are correct
+          ports:
+            - containerPort: 8000
       imagePullSecrets:
-      - name: acr-secret
+        - name: acr-secret  # Reference the created secret

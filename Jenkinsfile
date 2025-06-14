@@ -5,12 +5,13 @@ pipeline {
         ACR = 'djangopp.azurecr.io'
         IMAGE = 'django-app'
         TAG = 'v1'
+        KUBECONFIG = credentials('k8s-kubeconfig') // Use the correct credential ID here
     }
 
     stages {
         stage('Clone Repo') {
             steps {
-                git 'https://github.com/SathishbabuMG/Auction-Project.git'
+                git branch: 'main', url: 'https://github.com/SathishbabuMG/Auction-App.git'
             }
         }
 
@@ -33,6 +34,19 @@ pipeline {
         stage('Push to ACR') {
             steps {
                 sh "docker push $ACR/$IMAGE:$TAG"
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    script {
+                        // Debugging: Print KUBECONFIG path to verify
+                        sh 'echo $KUBECONFIG'
+                        sh(script: "kubectl --kubeconfig=${KUBECONFIG} apply -f k8s/deployment.yaml", returnStdout: true)
+                        sh(script: "kubectl --kubeconfig=${KUBECONFIG} apply -f k8s/service.yaml", returnStdout: true)
+                    }
+                }
             }
         }
     }
