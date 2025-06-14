@@ -47,12 +47,13 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                script {
+                withCredentials([usernamePassword(credentialsId: 'acr-credentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     sh """
-                    kubectl set image deployment/${DEPLOYMENT_NAME} django-container=${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} --namespace=${NAMESPACE}
+                        kubectl set image deployment/django-deployment django-container=${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} --record
                     """
                 }
             }
         }
+
     }
 }
