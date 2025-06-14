@@ -1,22 +1,47 @@
 ---
 - name: Setup Jenkins, Docker, and Kubernetes
   hosts: vm
-  become: true
+  become: yes
 
   tasks:
-
-    - name: Update apt
+    - name: Update APT packages
       apt:
         update_cache: yes
+        cache_valid_time: 3600
 
-    - name: Install required packages
+    - name: Install Java (required for Jenkins)
+      apt:
+        name: openjdk-11-jdk
+        state: present
+
+    - name: Add Jenkins GPG key
+      apt_key:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
+        state: present
+
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+
+    - name: Start and enable Jenkins
+      systemd:
+        name: jenkins
+        enabled: yes
+        state: started
+
+    - name: Install prerequisite packages for Docker
       apt:
         name:
           - apt-transport-https
           - ca-certificates
           - curl
-          - gnupg
-          - lsb-release
+          - software-properties-common
         state: present
 
     - name: Add Docker GPG key
@@ -24,16 +49,20 @@
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
 
-    - name: Add Docker repository
-      apt_repository:
-        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
-        state: present
+    - name: Add Docker repository manually
+      shell: |
+        echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable" > /etc/apt/sources.list.d/docker.list
+      args:
+        warn: false
+
+    - name: Update apt cache after adding Docker repo
+      apt:
+        update_cache: yes
 
     - name: Install Docker
       apt:
         name: docker-ce
-        state: latest
-        update_cache: true
+        state: present
 
     - name: Add user to docker group
       user:
@@ -41,71 +70,14 @@
         groups: docker
         append: yes
 
-    - name: Install Java for Jenkins
-      apt:
-        name: openjdk-11-jdk
-        state: present
-
-    - name: Add Jenkins key
-      apt_key:
-        url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
-        state: present
-
-    - name: Add Jenkins repository
-      apt_repository:
-        repo: deb https://pkg.jenkins.io/debian-stable binary/
-        state: present
-
-    - name: Install Jenkins
-      apt:
-        name: jenkins
-        state: present
-        update_cache: true
-
-    - name: Enable and start Jenkins
+    - name: Enable Docker service
       systemd:
-        name: jenkins
+        name: docker
         enabled: yes
         state: started
 
-    - name: Install kubeadm, kubelet, and kubectl
-      apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-        state: present
-
-    - name: Add Kubernetes GPG key
-      apt_key:
-        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
-        state: present
-
-    - name: Add Kubernetes repo
-      apt_repository:
-        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
-        state: present
-
-    - name: Install Kubernetes components
-      apt:
-        name:
-          - kubelet
-          - kubeadm
-          - kubectl
-        state: present
-        update_cache: true
-
-    - name: Hold kubelet, kubeadm, kubectl at current version
-      apt:
-        name: "{{ item }}"
-        state: present
-        allow_unauthenticated: yes
-        update_cache: yes
-        force: yes
-        install_recommends: no
-        state: present
-      loop:
-        - kubelet
-        - kubeadm
-        - kubectl
-      register: kube_result
+    - name: Install Kubernetes tools (kubectl)
+      get_url:
+        url: https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
