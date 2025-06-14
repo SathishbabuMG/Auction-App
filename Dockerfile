@@ -5,7 +5,7 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
-ENV DJANGO_SETTINGS_MODULE=myproject.settings.production  # Set to your production settings file
+# ENV DJANGO_SETTINGS_MODULE=myproject.settings.production  # Set to your production settings file
 
 # Set work directory
 WORKDIR /app
