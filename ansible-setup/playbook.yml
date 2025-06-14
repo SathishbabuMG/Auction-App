@@ -1,6 +1,6 @@
 ---
 - name: Setup Jenkins, Docker, and Kubernetes
-  hosts: ansible_vm
+  hosts: vm
   become: true
 
   tasks:
