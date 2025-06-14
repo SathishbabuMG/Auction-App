@@ -4,14 +4,11 @@ pipeline {
     environment {
         ACR_NAME = 'auctionapp'
         IMAGE_NAME = 'djangoapp'
-        IMAGE_TAG = 'v${BUILD_NUMBER}'
+        IMAGE_TAG = "v${BUILD_NUMBER}"
         REGISTRY = "${ACR_NAME}.azurecr.io"
         DEPLOYMENT_NAME = 'django-auction-deployment'
+        CONTAINER_NAME = 'django-container'  // container name in deployment.yaml
         NAMESPACE = 'default'
-    }
-
-    triggers {
-        githubPush()  // Auto-trigger on push
     }
 
     stages {
@@ -49,11 +46,25 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'acr-credentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     sh """
-                        kubectl set image deployment/django-deployment django-container=${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} --record
+                        kubectl set image deployment/${DEPLOYMENT_NAME} ${CONTAINER_NAME}=${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} --namespace=${NAMESPACE} --record
                     """
                 }
             }
         }
 
+        stage('Check Deployment Status') {
+            steps {
+                sh "kubectl rollout status deployment/${DEPLOYMENT_NAME} --namespace=${NAMESPACE}"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Successfully deployed ${IMAGE_NAME}:${IMAGE_TAG} to Kubernetes"
+        }
+        failure {
+            echo "❌ Deployment failed!"
+        }
     }
 }
