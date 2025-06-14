@@ -4,9 +4,10 @@ metadata:
   name: django-app-service
 spec:
   selector:
-    app: django-app
+    app: django
   ports:
     - protocol: TCP
       port: 80
       targetPort: 8000
-  type: LoadBalancer  # Change to NodePort if you're not using a cloud provider
+      nodePort: 30387   # Custom node port for access
+  type: NodePort       # Change this from LoadBalancer to NodePort
