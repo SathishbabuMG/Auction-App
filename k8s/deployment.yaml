@@ -14,8 +14,11 @@ spec:
     spec:
       containers:
         - name: django-container
-          image: djangopp.azurecr.io/django-app:v1  # Ensure the image name and tag are correct
+          image: djangopp.azurecr.io/django-app:v1
           ports:
             - containerPort: 8000
+          env:
+            - name: DJANGO_SETTINGS_MODULE
+              value: myproject.settings  # Update this line to use the correct settings module
       imagePullSecrets:
-        - name: acr-secret  # Reference the created secret
+        - name: acr-secret
