@@ -128,5 +128,7 @@ STATIC_URL = '/static/'
 
 # Add this if you don't have it yet to manage static files in production
 STATICFILES_DIRS = [
-    BASE_DIR / "static",  # Add static folder to project directory
+    BASE_DIR / 'auctionapp' / 'static',  # Adjust the path accordingly
 ]
+
+STATIC_ROOT = BASE_DIR / 'staticfiles' 
