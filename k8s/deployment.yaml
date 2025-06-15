@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: django-container
-          image: djangopp.azurecr.io/django-app:v3
+          image: djangopp.azurecr.io/django-app:v4
           ports:
             - containerPort: 8000
           env:
