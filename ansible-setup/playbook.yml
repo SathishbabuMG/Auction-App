@@ -1,37 +1,21 @@
 ---
-- name: Setup Jenkins, Docker, and Kubernetes
+- name: Setup Docker, Jenkins, Kubernetes on Ubuntu
   hosts: vm
   become: yes
 
+  vars:
+    kubernetes_version: "1.28"
+
   tasks:
+
+    ### ------------------------------
+    ### Docker Installation
+    ### ------------------------------
     - name: Update APT packages
       apt:
         update_cache: yes
-        cache_valid_time: 3600
 
-    - name: Install Java (required for Jenkins)
-      apt:
-        name: openjdk-11-jdk
-        state: present
-
-    - name: Add Jenkins GPG key
-      apt_key:
-        url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
-        state: present
-
-    - name: Add Jenkins repository manually (workaround for apt_repository bug)
-      shell: echo "deb https://pkg.jenkins.io/debian-stable binary/" > /etc/apt/sources.list.d/jenkins.list
-
-    - name: Update APT cache after adding Jenkins repo
-      apt:
-        update_cache: yes
-
-    - name: Install Jenkins
-      apt:
-        name: jenkins
-        state: present
-
-    - name: Install Docker dependencies
+    - name: Install dependencies for Docker
       apt:
         name:
           - ca-certificates
@@ -40,33 +24,211 @@
           - lsb-release
         state: present
 
-    - name: Download Docker GPG key
+    - name: Add Docker GPG key
       get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
-        dest: /usr/share/keyrings/docker-archive-keyring.gpg
+        dest: /etc/apt/keyrings/docker.gpg
         mode: '0644'
+      notify: Update apt cache
 
-    - name: Add Docker repository (corrected)
-      shell: |
-        echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+    - name: Add Docker repository
+      copy:
+        dest: /etc/apt/sources.list.d/docker.list
+        content: |
+          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
 
-    - name: Update APT cache after adding Docker repo
+    - name: Update APT cache after Docker repo
       apt:
         update_cache: yes
 
-    - name: Install Docker
+    - name: Install Docker packages
       apt:
         name:
           - docker-ce
           - docker-ce-cli
           - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
         state: present
 
-    - name: Enable Docker service
+    - name: Enable and start Docker
       systemd:
         name: docker
         enabled: yes
         state: started
 
-    - name: Add Jenkins user to docker group (workaround for Ansible bug)
-      shell: usermod -aG docker jenkins
+    - name: Add current user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    ### ------------------------------
+    ### Jenkins Installation
+    ### ------------------------------
+    - name: Install OpenJDK 17
+      apt:
+        name: openjdk-17-jdk
+        state: present
+
+    - name: Add Jenkins key
+      shell: curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+
+    - name: Add Jenkins repository
+      copy:
+        dest: /etc/apt/sources.list.d/jenkins.list
+        content: |
+          deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/
+
+    - name: Update APT cache after Jenkins repo
+      apt:
+        update_cache: yes
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+
+    - name: Enable and start Jenkins
+      systemd:
+        name: jenkins
+        enabled: yes
+        state: started
+
+    ### ------------------------------
+    ### Kubernetes Installation
+    ### ------------------------------
+
+    - name: Disable swap temporarily
+      command: swapoff -a
+
+    - name: Disable swap permanently
+      replace:
+        path: /etc/fstab
+        regexp: '^\s*(.+\s+swap\s+.+)$'
+        replace: '# \1'
+
+    - name: Load kernel modules
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: Load kernel modules now
+      shell: |
+        modprobe overlay
+        modprobe br_netfilter
+
+    - name: Set sysctl params
+      copy:
+        dest: /etc/sysctl.d/k8s.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables = 1
+          net.ipv4.ip_forward = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+
+    - name: Apply sysctl params
+      command: sysctl --system
+
+    - name: Install Kubernetes dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gpg
+        state: present
+
+    - name: Add Kubernetes GPG key
+      shell: |
+        mkdir -p /etc/apt/keyrings
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes apt repository
+      copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/ /
+
+    - name: Update APT cache after Kubernetes repo
+      apt:
+        update_cache: yes
+
+    - name: Install Kubernetes components
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+
+    - name: Hold Kubernetes components
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: hold
+
+    ### ------------------------------
+    ### Fix containerd for Kubernetes
+    ### ------------------------------
+    - name: Restart containerd
+      systemd:
+        name: containerd
+        state: restarted
+        enabled: yes
+
+    - name: Create default containerd config
+      shell: |
+        mkdir -p /etc/containerd
+        containerd config default | tee /etc/containerd/config.toml > /dev/null
+      args:
+        creates: /etc/containerd/config.toml
+
+    - name: Ensure CRI plugin is enabled
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: '^\s*disabled_plugins\s*=\s*\[.*"cri".*\]'
+        replace: '# disabled_plugins = []'
+
+    - name: Restart containerd after config
+      systemd:
+        name: containerd
+        state: restarted
+
+    ### ------------------------------
+    ### Initialize Kubernetes & Setup CNI
+    ### ------------------------------
+    - name: Initialize Kubernetes cluster
+      command: kubeadm init --pod-network-cidr=192.168.0.0/16
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Set up kubeconfig for current user
+      become_user: "{{ ansible_user }}"
+      shell: |
+        mkdir -p $HOME/.kube
+        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+      args:
+        executable: /bin/bash
+
+    - name: Install Calico CNI
+      become_user: "{{ ansible_user }}"
+      shell: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/calico.yaml
+
+    - name: Wait for node to be ready
+      become_user: "{{ ansible_user }}"
+      shell: |
+        kubectl get nodes --no-headers | grep -q ' Ready'
+      retries: 10
+      delay: 15
+      register: result
+      until: result.rc == 0
+
+  handlers:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
